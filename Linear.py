@@ -16,6 +16,7 @@ from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression  # ← Library scikit-learn
 
 from utility.analysis_utils import (
+    color_name_from_rgb,
     evaluate_single_plane,
     export_rows_csv,
     sample_points,
@@ -295,6 +296,10 @@ def run(
                 {
                     "ply_file": used_ply_path,
                     "plane_id": int(plane.plane_id),
+                    "color_name": color_name_from_rgb(plane.color),
+                    "color_r": float(plane.color[0]),
+                    "color_g": float(plane.color[1]),
+                    "color_b": float(plane.color[2]),
                     "normal_x": float(plane.normal[0]),
                     "normal_y": float(plane.normal[1]),
                     "normal_z": float(plane.normal[2]),

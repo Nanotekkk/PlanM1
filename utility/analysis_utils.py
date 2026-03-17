@@ -165,6 +165,25 @@ def estimate_required_trials(
     return int(max(1, math.ceil(n)))
 
 
+def color_name_from_rgb(color: tuple[float, float, float]) -> str:
+    """Return a readable color name for known palette colors."""
+    r, g, b = (float(color[0]), float(color[1]), float(color[2]))
+    key = (round(r, 3), round(g, 3), round(b, 3))
+    names = {
+        (1.0, 0.0, 0.0): "rouge",
+        (0.0, 1.0, 0.0): "vert",
+        (0.0, 0.0, 1.0): "bleu",
+        (1.0, 1.0, 0.0): "jaune",
+        (1.0, 0.0, 1.0): "magenta",
+        (0.0, 1.0, 1.0): "cyan",
+        (1.0, 0.5, 0.0): "orange",
+        (0.5, 0.0, 1.0): "violet",
+    }
+    if key in names:
+        return names[key]
+    return f"rgb({r:.3f},{g:.3f},{b:.3f})"
+
+
 def export_rows_csv(rows: list[dict[str, object]], csv_path: str) -> Path:
     """Append rows to CSV while preserving existing data and schema changes."""
     out = Path(csv_path)
@@ -178,6 +197,10 @@ def export_rows_csv(rows: list[dict[str, object]], csv_path: str) -> Path:
     ordered_columns = [
         "ply_file",
         "plane_id",
+        "color_name",
+        "color_r",
+        "color_g",
+        "color_b",
         "normal_x",
         "normal_y",
         "normal_z",

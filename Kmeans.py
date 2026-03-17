@@ -15,6 +15,7 @@ import open3d as o3d
 from sklearn.cluster import KMeans  # ← Library scikit-learn
 
 from utility.analysis_utils import (
+    color_name_from_rgb,
     evaluate_single_plane,
     export_rows_csv,
     point_to_plane_distance,
@@ -191,9 +192,19 @@ def run(
     else:
         print(f"Sampling: off ({len(points)} points used)")
 
+    colors = [
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (1.0, 1.0, 0.0),
+        (1.0, 0.0, 1.0),
+        (0.0, 1.0, 1.0),
+    ]
+
     if metric or export_csv:
         rows = []
         for idx, plane in enumerate(planes):
+            color = colors[idx % len(colors)]
             mask = np.zeros(len(points), dtype=bool)
             mask[plane.inlier_indices] = True
             metric_values = evaluate_single_plane(
@@ -205,6 +216,10 @@ def run(
                 {
                     "ply_file": used_ply_path,
                     "plane_id": idx,
+                    "color_name": color_name_from_rgb(color),
+                    "color_r": float(color[0]),
+                    "color_g": float(color[1]),
+                    "color_b": float(color[2]),
                     "normal_x": float(plane.normal[0]),
                     "normal_y": float(plane.normal[1]),
                     "normal_z": float(plane.normal[2]),
@@ -234,14 +249,6 @@ def run(
 
     # Visualise les plans via Open3D/custom visualizer
     if visualize and planes:
-        colors = [
-            (1.0, 0.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 0.0, 1.0),
-            (1.0, 1.0, 0.0),
-            (1.0, 0.0, 1.0),
-            (0.0, 1.0, 1.0),
-        ]
         plane_results = []
         for idx, plane in enumerate(planes):
             plane_results.append(
@@ -256,6 +263,7 @@ def run(
             )
         visualize_point_cloud_with_planes(points, plane_results, "Room Plane Detection")
 
+##parseur d'arguments pour la ligne de commande
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Detection de plans avec normales + KMeans")
