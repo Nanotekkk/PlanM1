@@ -1,0 +1,15 @@
+# Un plan par ligne: a,b,c,d
+# Format: normale_x, normale_y, normale_z, distance  (equation: ax+by+cz+d=0)
+#
+# --- Plans RANSAC valides (sol / plafond) ---
+0,0,1,0.9258      # sol (plan 0 RANSAC - meilleur score)
+0,0,1,-2.1988     # plafond (plan 1 RANSAC)
+#
+# --- Plan mur valide RANSAC ---
+-0.6140744475368027,0.7892476203865615,0,-9.662048829876449     # mur A (plan 4 RANSAC)
+#
+# --- Plans manquants: mur perpendiculaire au mur A ---
+# La normale perpendiculaire a (-0.614, 0.789, 0) est (0.789, 0.614, 0)
+# Ajuste la distance d pour trouver les 2 faces du mur perpendiculaire
+0.7892476203865615,0.6140744475368027,0,-5.0     # mur B face 1 (ajuste d)
+0.7892476203865615,0.6140744475368027,0,-15.0    # mur B face 2 (ajuste d)

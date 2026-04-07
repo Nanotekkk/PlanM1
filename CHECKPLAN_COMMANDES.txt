@@ -1,0 +1,13 @@
+# Commandes checkplan (multi-plans)
+
+# 1) Un seul plan
+py checkplan.py a127.ply -0.0003703930672024,0.0004448883612273,0.9999998324416468,0.9258504463474292 --distance-threshold 0.03 --smooth-epsilon 0.0001
+
+# 2) Plusieurs plans dans la meme commande
+py checkplan.py a127.ply -0.0003703930672024,0.0004448883612273,0.9999998324416468,0.9258504463474292 -0.0023236969205788,-0.0024956397356511,0.9999941860905648,-2.198818005368448 -0.6140744475368027,0.7892476203865615,-0.0008755549787849,-9.662048829876449 --distance-threshold 0.03 --smooth-epsilon 0.0001
+
+# 3) Plusieurs plans depuis un fichier texte
+py checkplan.py a127.ply --planes-file plans_a127.txt --distance-threshold 0.03 --smooth-epsilon 0.0001
+
+# 4) Export CSV des essais
+py checkplan.py a127.ply --planes-file plans_a127.txt --distance-threshold 0.03 --smooth-epsilon 0.0001 --export-csv --csv-path checkplan_metrics.csv
