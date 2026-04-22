@@ -141,7 +141,7 @@ def evaluate_single_plane(
 
     diag = np.linalg.norm(points.max(axis=0) - points.min(axis=0)) + 1e-12
     rmse_norm = min(rmse / diag, 1.0)
-    score = 0.6 * inlier_ratio + 0.4 * (1.0 - rmse_norm)
+    score = 0.6 * inlier_ratio + 0.4 * (1.0 - rmse_norm) #inutile on peut supprimer car les méthodes sont différentes # a demander,car c'est arbitraire et pas forcément optimal ?
 
     return {
         "inlier_ratio": inlier_ratio,

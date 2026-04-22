@@ -1,114 +1,116 @@
 # PlanM1
 
-Projet de detection de plans dans un nuage de points `.ply` avec trois approches:
-- `Kmeans.py`: clustering des normales puis ajustement de plans
-- `Ransac.py`: detection directe de plans par RANSAC
-- `Linear.py`: ajustement de plans par regression lineaire
+Detection et verification de plans dans des nuages de points `.ply`.
+
+Trois methodes de detection automatique, plus un outil de verification manuelle.
+
+---
 
 ## Installation
-
-Prerequis:
-- Python 3.10+
-- pip
-
-Installation des dependances:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-## Structure du projet
+Pre-requis : Python 3.10+
 
-```text
-Kmeans.py
-Linear.py
-Ransac.py
-utility/
-ply_files/
-COMMANDES.md
-COMPARAISON_METHODES.md
+---
+
+## Structure
+
 ```
+Kmeans.py                  — detection par clustering des normales
+Linear.py                  — detection par regression lineaire iterative
+Ransac.py                  — detection par RANSAC
+checkplan.py               — verification de plans connus
+utility/                   — modules partages (I/O, metriques, visualisation)
+ply_files/                 — nuages de points .ply
+json/                      — plans de reference .json
+csv/                       — metriques exportees .csv
+plans/                     — plans .txt et commandes checkplan
+requirements.txt
+COMMANDES.md               — reference complete des commandes
+```
+
+---
 
 ## Utilisation rapide
 
-Les fichiers `.ply` sont charges depuis `ply_files/` si tu donnes seulement le nom du fichier.
+Les fichiers `.ply` sont charges depuis `ply_files/` si tu donnes seulement le nom.
 
 ### KMeans
-
 ```powershell
-py Kmeans.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
+py Kmeans.py a127.ply --metric --echant
 ```
 
 ### Linear
-
 ```powershell
-py Linear.py a127.ply --metric --no-visualize
+py Linear.py a127.ply --metric --echant
 ```
 
 ### RANSAC
-
 ```powershell
-py Ransac.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05 --inlier-ratio-threshold 0.05
+py Ransac.py a127.ply --metric --echant
 ```
 
-### Check Plan (plan manuel)
+### checkplan — verification de plans connus
 
-Tu peux tester un plan precis avec ses coefficients d'equation $ax+by+cz+d=0$:
-
-```powershell
-py checkplan.py a127.ply 1,0,5,2
-```
-
-Le script affiche toujours la visualisation 3D Open3D.
-Il applique aussi un lissage des coefficients pour faciliter le test de "plan parfait"
-(ex: `0.00005` devient `0` avec le seuil par defaut).
-
-Options utiles:
+Teste un ou plusieurs plans definis par leurs coefficients `ax + by + cz + d = 0`.
+Les valeurs sont arrondies automatiquement a l'affichage.
 
 ```powershell
-py checkplan.py a127.ply 1,0,5,2 --distance-threshold 0.03 --export-csv
-py checkplan.py a127.ply 0.00005,0,0.99999,0.9258 --smooth-epsilon 0.0001
-py checkplan.py a127.ply --planes-file plans_a127.txt --distance-threshold 0.03 --smooth-epsilon 0.0001
+# Plan manuel
+py checkplan.py a127.ply 0,0,1,0.93
+
+# Depuis un fichier JSON
+py checkplan.py a127.ply testa127.json
+
+# Avec visualisation plan par plan
+py checkplan.py a127.ply testa127.json --visualize-one-by-one
+
+# Scanner une normale pour trouver les distances d candidates
+py checkplan.py a127.ply --scan-normal 0,0,1
 ```
 
-Fichiers utiles fournis:
-- `CHECKPLAN_COMMANDES.txt`: commandes pretes a copier/coller
-- `plans_a127.txt`: exemple de liste multi-plans (un plan par ligne)
+Fichiers JSON disponibles dans `json/` :
+- `testa127.json` — plans de `a127.ply`
+- `test_fmms_salle_152.json` — plans de `fmms_salle_152.ply`
 
-## Sorties
+---
 
-Selon les options, les scripts peuvent:
-- afficher les metriques en console
-- afficher les parametres des plans detectes:
-  - normale
-  - distance
-  - nombre d'inliers
-- exporter les resultats en CSV
-- ouvrir une visualisation Open3D
+## Metriques
+
+Chaque plan detecte retourne :
+- `inlier_count` : nombre de points appartenant au plan
+- `inlier_ratio` : proportion du nuage couverte
+- `rmse` : erreur quadratique moyenne des inliers
+
+---
 
 ## Echantillonnage
 
-Deux modes sont disponibles:
-- `random`: echantillonnage aleatoire
-- `voxel`: un point representatif par voxel
-
-Activation:
+Activation avec `--echant`. Deux modes :
 
 ```powershell
---echant --sampling-method random
-```
+# Aleatoire
+--echant --sampling-method random --sample-target-points 3000
 
-ou
-
-```powershell
+# Voxel (un point par cellule de grille)
 --echant --sampling-method voxel --voxel-size 0.05
 ```
 
-## Documentation complementaire
+---
 
-- Voir `COMMANDES.md` pour la liste complete des commandes
-- Voir `COMPARAISON_METHODES.md` pour la comparaison entre KMeans, RANSAC et Linear
+## Export CSV
 
-## Git
+Ajouter `--export-csv` a n'importe quelle commande.
+Les fichiers sont ecrits dans `csv/` par defaut.
 
-Le dossier `ply_files/` est ignore par Git via `.gitignore`.
+```powershell
+py Ransac.py a127.ply --metric --export-csv
+py checkplan.py a127.ply testa127.json --export-csv
+```
+
+---
+
+Voir `COMMANDES.md` pour la liste complete des options.

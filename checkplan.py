@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -9,7 +10,31 @@ import numpy as np
 
 from utility.analysis_utils import evaluate_single_plane, export_rows_csv
 from utility.io_utils import load_points_from_ply
-from utility.visualizer import PlaneResult, visualize_point_cloud_with_planes
+from utility.visualizer import PlaneResult, visualize_point_cloud_with_planes, visualize_planes_one_by_one
+
+ROOT_DIR = Path(__file__).resolve().parent
+JSON_DIR = ROOT_DIR / "json"
+PLANS_DIR = ROOT_DIR / "plans"
+
+
+def _resolve_json_path(name: str) -> Path:
+    p = Path(name)
+    if p.exists():
+        return p
+    candidate = JSON_DIR / p.name
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(f"Fichier JSON introuvable: {name} (cherche aussi dans json/)")
+
+
+def _resolve_planes_file_path(name: str) -> Path:
+    p = Path(name)
+    if p.exists():
+        return p
+    candidate = PLANS_DIR / p.name
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(f"Fichier de plans introuvable: {name} (cherche aussi dans plans/)")
 
 
 def _parse_plane(plane_str: str) -> np.ndarray:
@@ -113,7 +138,7 @@ def _scan_normal_cmd(points: np.ndarray, normal_str: str, n_candidates: int = 6,
 
 
 def _load_plane_strings_from_file(file_path: str) -> list[str]:
-    lines = Path(file_path).read_text(encoding="utf-8").splitlines()
+    lines = _resolve_planes_file_path(file_path).read_text(encoding="utf-8").splitlines()
     planes: list[str] = []
     for line in lines:
         # Strip inline comments and surrounding whitespace
@@ -124,6 +149,50 @@ def _load_plane_strings_from_file(file_path: str) -> list[str]:
     return planes
 
 
+def _load_planes_from_json(json_path: str) -> list[str]:
+    """Charge les plans depuis un fichier JSON.
+
+    Format attendu::
+
+        {"planes": [[a, b, c, d], ...]}
+
+    Ou bien une liste directe::
+
+        [[a, b, c, d], ...]
+    """
+    data = json.loads(_resolve_json_path(json_path).read_text(encoding="utf-8"))
+    if isinstance(data, dict):
+        raw_planes = data.get("planes", [])
+    elif isinstance(data, list):
+        raw_planes = data
+    else:
+        raise ValueError(f"Format JSON non reconnu dans {json_path}")
+
+    planes: list[str] = []
+    for entry in raw_planes:
+        if isinstance(entry, (list, tuple)) and len(entry) == 4:
+            planes.append(",".join(str(v) for v in entry))
+        elif isinstance(entry, dict):
+            a = entry.get("a", entry.get("normal_x", 0))
+            b = entry.get("b", entry.get("normal_y", 0))
+            c = entry.get("c", entry.get("normal_z", 0))
+            d = entry.get("d", entry.get("distance", 0))
+            planes.append(f"{a},{b},{c},{d}")
+        else:
+            raise ValueError(f"Entree de plan JSON invalide: {entry}")
+    return planes
+
+
+def _round_display(value: float, eps_zero: float = 0.005, eps_int: float = 0.005) -> float:
+    """Arrondit une valeur pour l'affichage: snap vers 0 et entiers proches, sinon 2 decimales."""
+    if abs(value) <= eps_zero:
+        return 0.0
+    nearest_int = round(value)
+    if abs(value - nearest_int) <= eps_int:
+        return float(nearest_int)
+    return round(value, 2)
+
+
 def run(
     ply_path: Optional[str],
     plane_strs: list[str],
@@ -131,10 +200,12 @@ def run(
     metric: bool = True,
     smooth_epsilon: float = 1e-4,
     export_csv: bool = False,
-    csv_path: str = "checkplan_metrics.csv",
+    csv_path: str = "csv/checkplan_metrics.csv",
     csv_smooth_epsilon: float = 1e-4,
     csv_unit_value: float = 0.9999,
     csv_decimals: int = 4,
+    visualize: bool = False,
+    visualize_one_by_one: bool = False,
 ) -> None:
     points, used_ply_path = _load_points(ply_path)
 
@@ -145,7 +216,6 @@ def run(
     print(f"PLY: {used_ply_path}")
     print("method: checkplan")
     print(f"planes_count: {len(plane_strs)}")
-    print(f"smooth_epsilon: {smooth_epsilon:.6f}")
     print(f"distance_threshold: {distance_threshold:.6f}")
 
     palette = [
@@ -173,15 +243,27 @@ def run(
         inlier_indices = np.where(inlier_mask)[0]
         metric_values = evaluate_single_plane(points, plane, inlier_mask)
 
-        print(f"Plane {idx} input: ({plane_raw[0]:.6f}, {plane_raw[1]:.6f}, {plane_raw[2]:.6f}, {plane_raw[3]:.6f})")
-        print(f"Plane {idx} smoothed: ({a:.6f}, {b:.6f}, {c:.6f}, {d:.6f})")
-        print(f"Plane {idx} inlier_count: {int(np.sum(inlier_mask))}")
+        ra = _round_display(float(a))
+        rb = _round_display(float(b))
+        rc = _round_display(float(c))
+        rd = _round_display(float(d))
+        print(f"\nPlan {idx}: ({ra}, {rb}, {rc}, {rd})")
+        print(f"  inlier_count: {int(np.sum(inlier_mask))}")
 
         if metric:
-            print(f"Plane {idx} metrics:")
-            print(f"inlier_ratio: {metric_values['inlier_ratio']:.6f}")
-            print(f"rmse: {metric_values['rmse']:.6f}")
-            print(f"score: {metric_values['score']:.6f}")
+            print(f"  inlier_ratio: {metric_values['inlier_ratio']:.4f}")
+            print(f"  rmse:         {metric_values['rmse']:.4f}")
+
+        plane_results.append(
+            PlaneResult(
+                plane_id=idx,
+                normal=np.array([a, b, c], dtype=float),
+                distance=float(d),
+                inlier_indices=inlier_indices,
+                inlier_count=len(inlier_indices),
+                color=palette[idx % len(palette)],
+            )
+        )
 
         if export_csv:
             csv_nx = _smooth_csv_normal_component(float(a), csv_smooth_epsilon, csv_unit_value, csv_decimals)
@@ -200,26 +282,17 @@ def run(
                     "inlier_count": int(np.sum(inlier_mask)),
                     "inlier_ratio": float(metric_values["inlier_ratio"]),
                     "rmse": float(metric_values["rmse"]),
-                    "score": float(metric_values["score"]),
                 }
             )
 
-        plane_results.append(
-            PlaneResult(
-                plane_id=idx,
-                normal=np.array([a, b, c], dtype=float),
-                distance=float(d),
-                inlier_indices=inlier_indices,
-                inlier_count=len(inlier_indices),
-                color=palette[idx % len(palette)],
-            )
-        )
-
     if export_csv:
         out = export_rows_csv(rows, csv_path)
-        print(f"csv: {out}")
+        print(f"\ncsv: {out}")
 
-    visualize_point_cloud_with_planes(points, plane_results, "Check Plans")
+    if visualize_one_by_one:
+        visualize_planes_one_by_one(points, plane_results)
+    elif visualize:
+        visualize_point_cloud_with_planes(points, plane_results, "Check Plans")
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -227,7 +300,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         description="Selectionne et affiche un ou plusieurs plans a partir de coefficients a,b,c,d"
     )
     parser.add_argument("ply_path", nargs="?", default=None, help="Nom ou chemin du fichier .ply")
-    parser.add_argument("planes", nargs="*", help="Un ou plusieurs plans au format a,b,c,d")
+    parser.add_argument(
+        "planes",
+        nargs="*",
+        help="Plans au format a,b,c,d ou chemin vers un fichier .json contenant les plans",
+    )
     parser.add_argument(
         "--planes-file",
         type=str,
@@ -247,8 +324,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Lissage des coefficients: |valeur| <= epsilon devient 0 (defaut: 1e-4)",
     )
     parser.add_argument("--no-metric", action="store_true", help="Desactive l'affichage des metriques")
+    parser.add_argument("--visualize", action="store_true", help="Affiche la visualisation 3D Open3D (desactivee par defaut)")
+    parser.add_argument("--visualize-one-by-one", action="store_true", help="Affiche chaque plan un par un (fermer la fenetre pour passer au suivant)")
     parser.add_argument("--export-csv", action="store_true", help="Ajoute la ligne de metriques dans un CSV")
-    parser.add_argument("--csv-path", type=str, default="checkplan_metrics.csv", help="Chemin du fichier CSV")
+    parser.add_argument("--csv-path", type=str, default="csv/checkplan_metrics.csv", help="Chemin du fichier CSV")
     parser.add_argument(
         "--csv-smooth-epsilon",
         type=float,
@@ -281,20 +360,37 @@ if __name__ == "__main__":
     args = _build_arg_parser().parse_args(sys.argv[1:])
 
     if args.scan_normal:
-        pts, _ = _load_points(args.ply_path)
+        pts, _ = _load_points(args.ply_path if not (args.ply_path or "").lower().endswith(".json") else None)
         _scan_normal_cmd(pts, args.scan_normal)
         sys.exit(0)
 
     all_planes: list[str] = []
-    if args.planes:
-        all_planes.extend(args.planes)
+    remaining_plane_args: list[str] = []
+    ply_path_override = args.ply_path
+
+    # If ply_path is actually a JSON file, treat it as a planes file
+    if ply_path_override and ply_path_override.lower().endswith(".json"):
+        print(f"Plans charges depuis: {ply_path_override}")
+        all_planes.extend(_load_planes_from_json(ply_path_override))
+        ply_path_override = None
+
+    for arg in (args.planes or []):
+        if arg.lower().endswith(".json"):
+            print(f"Plans charges depuis: {arg}")
+            all_planes.extend(_load_planes_from_json(arg))
+        else:
+            remaining_plane_args.append(arg)
+
+    all_planes.extend(remaining_plane_args)
+
     if args.planes_file:
         all_planes.extend(_load_plane_strings_from_file(args.planes_file))
+
     if not all_planes:
-        raise ValueError("Fournis au moins un plan via argument ou --planes-file")
+        raise ValueError("Fournis au moins un plan via argument, fichier .json ou --planes-file")
 
     run(
-        ply_path=args.ply_path,
+        ply_path=ply_path_override,
         plane_strs=all_planes,
         distance_threshold=args.distance_threshold,
         metric=not args.no_metric,
@@ -304,4 +400,6 @@ if __name__ == "__main__":
         csv_smooth_epsilon=args.csv_smooth_epsilon,
         csv_unit_value=args.csv_unit_value,
         csv_decimals=args.csv_decimals,
+        visualize=args.visualize,
+        visualize_one_by_one=args.visualize_one_by_one,
     )

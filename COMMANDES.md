@@ -1,133 +1,177 @@
 # Commandes d'execution
 
-### Commande minimale
+## Structure du projet
+
+```
+ply_files/   — fichiers .ply (nuages de points)
+json/        — fichiers de plans JSON (testa127.json, test_fmms_salle_152.json, ...)
+csv/         — fichiers de metriques CSV (generes par --export-csv)
+plans/       — fichiers de plans .txt (plans_a127.txt, CHECKPLAN_COMMANDES.txt)
+utility/     — modules Python partages
+```
+
+---
+
+## 1) KMeans
+
 ```powershell
+# Minimal
 py Kmeans.py a127.ply
-```
-### Commande demandee (metriques + echantillonnage)
-```powershell
+
+# Avec metriques et echantillonnage
 py Kmeans.py a127.ply --metric --echant
-```
 
-### Echantillonnage voxel
-```powershell
+# Echantillonnage voxel
 py Kmeans.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
-```
 
-### Options disponibles
-```powershell
-py Kmeans.py --help
-```
-- `ply_path`: fichier `.ply` a charger (positionnel)
-- `--n-planes`: nombre de plans a detecter (defaut `6`)
-- `--distance-threshold`: seuil distance point-plan (defaut: `1%` de la diagonale)
-- `--no-visualize`: desactive la fenetre Open3D
-- `--metric`: affiche les metriques en console
-- `--use-sampling` / `--echant`: active l'echantillonnage
-- `--sampling-method` / `--echant-method`: methode d'echantillonnage (`random` ou `voxel`)
-- `--sample-target-points`: nombre de points apres echantillonnage aleatoire (defaut `4000`)
-- `--sample-seed`: graine aleatoire pour la methode `random` (defaut `42`)
-- `--voxel-size`: taille de voxel pour la methode `voxel` (defaut `0.05`)
-- `--export-csv`: exporte les metriques en CSV
-- `--csv-path`: chemin du CSV (defaut `room_planes_metrics.csv`)
-
-### Exemples utiles
-```powershell
-py Kmeans.py a127.ply --metric --echant --no-visualize
-py Kmeans.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.03
+# Export CSV
 py Kmeans.py a127.ply --metric --echant --export-csv
-py Kmeans.py a127.ply --n-planes 8 --distance-threshold 0.02
 ```
 
-### Metriques + echantillonnage
+**Options:**
+| Option | Defaut | Description |
+|--------|--------|-------------|
+| `--n-planes` | `6` | Nombre de plans a detecter |
+| `--distance-threshold` | `1% diag` | Seuil distance point-plan |
+| `--no-visualize` | — | Desactive la fenetre Open3D |
+| `--metric` | — | Affiche les metriques en console |
+| `--echant` | — | Active l'echantillonnage |
+| `--sampling-method` | `random` | Methode: `random` ou `voxel` |
+| `--sample-target-points` | `4000` | Taille echantillon (random) |
+| `--sample-seed` | `42` | Graine aleatoire |
+| `--voxel-size` | `0.05` | Taille de voxel |
+| `--export-csv` | — | Exporte les metriques en CSV |
+| `--csv-path` | `csv/room_planes_metrics.csv` | Chemin du CSV |
+
+---
+
+## 2) Linear
+
 ```powershell
+# Minimal
+py Linear.py a127.ply
+
+# Avec metriques et echantillonnage
 py Linear.py a127.ply --metric --echant
-```
 
-### Echantillonnage voxel
-```powershell
+# Echantillonnage voxel
 py Linear.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
-```
-### Exemples utiles
-```powershell
-py Linear.py a127.ply --metric --echant --no-visualize
-py Linear.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.03
-py Linear.py a127.ply --max-planes 6 --inlier-percentile 10
+
+# Export CSV
 py Linear.py a127.ply --metric --export-csv
 ```
 
-### Options disponibles
-```powershell
-py Ransac.py --help
-```
-- `ply_path`: fichier `.ply` a charger (positionnel)
-- `--max-planes`: nombre maximal de plans (defaut `6`)
-- `--min-points`: points minimaux par plan (defaut `200`)
-- `--inlier-ratio-threshold`: ratio minimal d'inliers (defaut `0.05`)
-- `--residual-threshold`: seuil de distance point-plan (defaut: `1%` de la diagonale)
-- `--max-trials`: iterations RANSAC max (defaut `1000`)
-- `--confidence`: confiance pour estimation theorique (defaut `0.99`)
-- `--no-visualize`: desactive la fenetre Open3D
-- `--metric`: affiche les metriques en console
-- `--use-sampling` / `--echant`: active l'echantillonnage
-- `--sampling-method` / `--echant-method`: methode d'echantillonnage (`random` ou `voxel`)
-- `--sample-target-points`: taille echantillon pour `random` (defaut `3000`)
-- `--sample-seed`: graine aleatoire pour `random` (defaut `42`)
-- `--voxel-size`: taille de voxel pour `voxel` (defaut `0.05`)
-- `--export-csv`: exporte les metriques en CSV
-- `--csv-path`: chemin du CSV (defaut `ransac_metrics.csv`)
+**Options:**
+| Option | Defaut | Description |
+|--------|--------|-------------|
+| `--max-planes` | `6` | Nombre maximal de plans |
+| `--inlier-percentile` | `15.0` | Percentile de residus pour les inliers |
+| `--min-points` | `200` | Points minimaux par plan |
+| `--no-visualize` | — | Desactive la fenetre Open3D |
+| `--metric` | — | Affiche les metriques en console |
+| `--echant` | — | Active l'echantillonnage |
+| `--sampling-method` | `random` | Methode: `random` ou `voxel` |
+| `--sample-target-points` | `3000` | Taille echantillon (random) |
+| `--sample-seed` | `42` | Graine aleatoire |
+| `--voxel-size` | `0.05` | Taille de voxel |
+| `--export-csv` | — | Exporte les metriques en CSV |
+| `--csv-path` | `csv/linear_metrics.csv` | Chemin du CSV |
 
-### Exemples utiles
+---
+
+## 3) RANSAC
+
 ```powershell
-py Ransac.py a127.ply --metric --echant --no-visualize
-py Ransac.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.03
+# Minimal
+py Ransac.py a127.ply
+
+# Avec metriques et echantillonnage
+py Ransac.py a127.ply --metric --echant
+
+# Echantillonnage voxel
+py Ransac.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
+
+# Plus d'iterations
 py Ransac.py a127.ply --max-trials 2000 --confidence 0.995
+
+# Export CSV
 py Ransac.py a127.ply --metric --export-csv
 ```
 
-## 4) Commandes rapides (resume)
+**Options:**
+| Option | Defaut | Description |
+|--------|--------|-------------|
+| `--max-planes` | `6` | Nombre maximal de plans |
+| `--min-points` | `200` | Points minimaux par plan |
+| `--inlier-ratio-threshold` | `0.05` | Ratio minimal d'inliers |
+| `--residual-threshold` | `1% diag` | Seuil de distance point-plan |
+| `--max-trials` | `1000` | Iterations RANSAC max |
+| `--confidence` | `0.99` | Confiance pour estimation theorique |
+| `--no-visualize` | — | Desactive la fenetre Open3D |
+| `--metric` | — | Affiche les metriques en console |
+| `--echant` | — | Active l'echantillonnage |
+| `--sampling-method` | `random` | Methode: `random` ou `voxel` |
+| `--sample-target-points` | `3000` | Taille echantillon (random) |
+| `--sample-seed` | `42` | Graine aleatoire |
+| `--voxel-size` | `0.05` | Taille de voxel |
+| `--export-csv` | — | Exporte les metriques en CSV |
+| `--csv-path` | `csv/ransac_metrics.csv` | Chemin du CSV |
+
+---
+
+## 4) checkplan
+
+Verifie un ou plusieurs plans connus sur un nuage de points.
+Les coefficients suivent l'equation `ax + by + cz + d = 0`.
+Les valeurs sont arrondies automatiquement a l'affichage (ex: `0.9999 -> 1`).
 
 ```powershell
-# KMeans: metriques + echantillonnage
-py Kmeans.py a127.ply --metric --echant
+# Plan manuel
+py checkplan.py a127.ply 0,0,1,0.93
 
-# KMeans: metriques + echantillonnage voxel
-py Kmeans.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
+# Plusieurs plans depuis un fichier JSON
+py checkplan.py a127.ply testa127.json
 
-# Linear: metriques + echantillonnage
-py Linear.py a127.ply --metric --echant
+# JSON seul (demande le .ply interactivement)
+py checkplan.py testa127.json
 
-# Linear: metriques + echantillonnage voxel
-py Linear.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
+# Visualisation 3D — tous les plans ensemble
+py checkplan.py a127.ply testa127.json --visualize
 
-# RANSAC: metriques + echantillonnage
-py Ransac.py a127.ply --metric --echant
+# Visualisation plan par plan (fermer la fenetre pour passer au suivant)
+py checkplan.py a127.ply testa127.json --visualize-one-by-one
 
-# RANSAC: metriques + echantillonnage voxel
-py Ransac.py a127.ply --metric --echant --sampling-method voxel --voxel-size 0.05
+# Scanner une normale pour trouver les valeurs d candidates
+py checkplan.py a127.ply --scan-normal 0,0,1
+py checkplan.py a127.ply "--scan-normal=-0.38,0.92,0"
 
-# Check un plan manuel (a,b,c,d)
-py checkplan.py a127.ply 1,0,5,2
-
-# Check un plan manuel + export CSV
-py checkplan.py a127.ply 1,0,5,2 --distance-threshold 0.03 --export-csv
-
-# Check avec lissage des petits coefficients
-py checkplan.py a127.ply 0.00005,0,0.99999,0.9258 --smooth-epsilon 0.0001
+# Export CSV des metriques
+py checkplan.py a127.ply testa127.json --export-csv
 ```
 
-## 5) Check d'un plan manuel
+**Options:**
+| Option | Defaut | Description |
+|--------|--------|-------------|
+| `--distance-threshold` | `1% diag` | Seuil d'appartenance d'un point au plan |
+| `--smooth-epsilon` | `1e-4` | Lissage des coefficients (ex: `0.00005 -> 0`) |
+| `--no-metric` | — | Desactive l'affichage des metriques |
+| `--visualize` | — | Fenetre Open3D, tous les plans |
+| `--visualize-one-by-one` | — | Fenetre Open3D, un plan a la fois |
+| `--planes-file` | — | Fichier .txt de plans (un par ligne) |
+| `--scan-normal` | — | Trouve les distances `d` candidates pour une normale |
+| `--export-csv` | — | Exporte les metriques en CSV |
+| `--csv-path` | `csv/checkplan_metrics.csv` | Chemin du CSV |
 
-Le format du plan est: `a,b,c,d` dans l'equation `ax+by+cz+d=0`.
+**Fichiers JSON disponibles** (recherche automatique dans `json/`) :
+- `json/testa127.json` — plans de `a127.ply`
+- `json/test_fmms_salle_152.json` — plans de `fmms_salle_152.ply`
 
-Exemple:
-
-```powershell
-py checkplan.py a127.ply 1,0,5,2
+**Format JSON:**
+```json
+{
+  "planes": [
+    [a, b, c, d],
+    [a, b, c, d]
+  ]
+}
 ```
-
-Options:
-- `--distance-threshold`: seuil d'appartenance d'un point au plan
-- visualisation 3D: toujours active
-- `--smooth-epsilon`: lisse les petits coefficients (ex: `0.00005 -> 0`)
-- `--export-csv`: ajoute les metriques dans `checkplan_metrics.csv`

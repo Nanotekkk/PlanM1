@@ -45,3 +45,38 @@ def visualize_point_cloud_with_planes(
 
     vis.run()
     vis.destroy_window()
+
+
+def visualize_planes_one_by_one(
+    points: np.ndarray,
+    planes: List[PlaneResult],
+    background_color: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+) -> None:
+    """Affiche chaque plan individuellement, un par un.
+    Ferme la fenetre pour passer au plan suivant.
+    """
+    base_colors = np.full((len(points), 3), 0.8, dtype=np.float64)
+
+    for plane in planes:
+        a, b, c = plane.normal
+        d = plane.distance
+        title = (
+            f"Plan {plane.plane_id}  |  "
+            f"normale=({a:.3f}, {b:.3f}, {c:.3f})  d={d:.3f}  |  "
+            f"inliers={plane.inlier_count}  "
+            f"[{plane.plane_id + 1}/{len(planes)}]  —  fermer pour continuer"
+        )
+
+        colors = base_colors.copy()
+        colors[plane.inlier_indices] = plane.color
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points.copy())
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+
+        o3d.visualization.draw_geometries(
+            [pcd],
+            window_name=title,
+            width=1200,
+            height=800,
+        )

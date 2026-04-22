@@ -139,7 +139,7 @@ def run(
     voxel_size: float = 0.05,
     metric: bool = False,
     export_csv: bool = False,
-    csv_path: str = "room_planes_metrics.csv",
+    csv_path: str = "csv/room_planes_metrics.csv",
 ) -> None:
     """Point d'entrée principal pour la détection de plans de salle."""
     points, used_ply_path = _load_points(ply_path)
@@ -294,7 +294,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-seed", type=int, default=42, help="Graine aleatoire pour l'echantillonnage")
     parser.add_argument("--voxel-size", type=float, default=0.05, help="Taille de voxel pour l'echantillonnage voxel")
     parser.add_argument("--export-csv", action="store_true", help="Exporte les metriques en CSV")
-    parser.add_argument("--csv-path", type=str, default="room_planes_metrics.csv", help="Chemin du fichier CSV")
+    parser.add_argument("--csv-path", type=str, default="csv/room_planes_metrics.csv", help="Chemin du fichier CSV")
     return parser
 
 
