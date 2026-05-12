@@ -42,6 +42,9 @@ py Kmeans.py a127.ply --metric --echant --export-csv
 | `--voxel-size` | `0.05` | Taille de voxel |
 | `--export-csv` | — | Exporte les metriques en CSV |
 | `--csv-path` | `csv/room_planes_metrics.csv` | Chemin du CSV |
+| `--world-model` | `none` | Modele de monde : `manhattan` ou `atlanta` |
+| `--world-angle-tol` | `15.0` | Tolerance angulaire (degres) pour recaler une normale |
+| `--atlanta-n-horizontal` | `4` | Directions horizontales de murs (Atlanta World) |
 
 ---
 
@@ -76,6 +79,9 @@ py Linear.py a127.ply --metric --export-csv
 | `--voxel-size` | `0.05` | Taille de voxel |
 | `--export-csv` | — | Exporte les metriques en CSV |
 | `--csv-path` | `csv/linear_metrics.csv` | Chemin du CSV |
+| `--world-model` | `none` | Modele de monde : `manhattan` ou `atlanta` |
+| `--world-angle-tol` | `15.0` | Tolerance angulaire (degres) pour recaler une normale |
+| `--atlanta-n-horizontal` | `4` | Directions horizontales de murs (Atlanta World) |
 
 ---
 
@@ -116,6 +122,9 @@ py Ransac.py a127.ply --metric --export-csv
 | `--voxel-size` | `0.05` | Taille de voxel |
 | `--export-csv` | — | Exporte les metriques en CSV |
 | `--csv-path` | `csv/ransac_metrics.csv` | Chemin du CSV |
+| `--world-model` | `none` | Modele de monde : `manhattan` ou `atlanta` |
+| `--world-angle-tol` | `15.0` | Tolerance angulaire (degres) pour recaler une normale |
+| `--atlanta-n-horizontal` | `4` | Directions horizontales de murs (Atlanta World) |
 
 ---
 

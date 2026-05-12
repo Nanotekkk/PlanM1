@@ -23,6 +23,7 @@ from utility.analysis_utils import (
 )
 from utility.io_utils import load_points_from_ply
 from utility.visualizer import PlaneResult, visualize_point_cloud_with_planes
+from utility.world_model import estimate_dominant_axes, snap_planes_to_world
 
 
 @dataclass
@@ -140,6 +141,9 @@ def run(
     metric: bool = False,
     export_csv: bool = False,
     csv_path: str = "csv/room_planes_metrics.csv",
+    world_model: str = "none",
+    world_angle_tol: float = 15.0,
+    atlanta_n_horizontal: int = 4,
 ) -> None:
     """Point d'entrée principal pour la détection de plans de salle."""
     points, used_ply_path = _load_points(ply_path)
@@ -175,9 +179,43 @@ def run(
         min_points=min_points,
     )
 
+    # Convertir en PlaneResult avec couleurs (nécessaire pour le modèle de monde et la visu)
+    colors = [
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (1.0, 1.0, 0.0),
+        (1.0, 0.0, 1.0),
+        (0.0, 1.0, 1.0),
+    ]
+    plane_results = [
+        PlaneResult(
+            plane_id=idx,
+            normal=plane.normal,
+            distance=plane.distance,
+            inlier_indices=plane.inlier_indices,
+            inlier_count=len(plane.inlier_indices),
+            color=colors[idx % len(colors)],
+        )
+        for idx, plane in enumerate(planes)
+    ]
+
+    # Appliquer la contrainte de modèle de monde (Manhattan ou Atlanta)
+    if world_model != "none" and plane_results:
+        axes = estimate_dominant_axes(
+            points, world_model, normals=normals, n_horizontal=atlanta_n_horizontal
+        )
+        plane_results = snap_planes_to_world(
+            plane_results, axes, points,
+            angle_tol_deg=world_angle_tol,
+            distance_threshold=distance_threshold,
+        )
+
     print(f"PLY: {used_ply_path}")
     print("method: normals_kmeans")
-    print(f"planes_detected: {len(planes)}")
+    print(f"planes_detected: {len(plane_results)}")
+    if world_model != "none":
+        print(f"world_model: {world_model}")
     if sampling_info is not None and sampling_info.used_sampling:
         details = f"method={sampling_info.method}"
         if sampling_info.method == "random" and sampling_info.seed is not None:
@@ -192,19 +230,9 @@ def run(
     else:
         print(f"Sampling: off ({len(points)} points used)")
 
-    colors = [
-        (1.0, 0.0, 0.0),
-        (0.0, 1.0, 0.0),
-        (0.0, 0.0, 1.0),
-        (1.0, 1.0, 0.0),
-        (1.0, 0.0, 1.0),
-        (0.0, 1.0, 1.0),
-    ]
-
     if metric or export_csv:
         rows = []
-        for idx, plane in enumerate(planes):
-            color = colors[idx % len(colors)]
+        for plane in plane_results:
             mask = np.zeros(len(points), dtype=bool)
             mask[plane.inlier_indices] = True
             metric_values = evaluate_single_plane(
@@ -215,16 +243,16 @@ def run(
             rows.append(
                 {
                     "ply_file": used_ply_path,
-                    "plane_id": idx,
-                    "color_name": color_name_from_rgb(color),
-                    "color_r": float(color[0]),
-                    "color_g": float(color[1]),
-                    "color_b": float(color[2]),
+                    "plane_id": int(plane.plane_id),
+                    "color_name": color_name_from_rgb(plane.color),
+                    "color_r": float(plane.color[0]),
+                    "color_g": float(plane.color[1]),
+                    "color_b": float(plane.color[2]),
                     "normal_x": float(plane.normal[0]),
                     "normal_y": float(plane.normal[1]),
                     "normal_z": float(plane.normal[2]),
                     "distance": float(plane.distance),
-                    "inlier_count": int(len(plane.inlier_indices)),
+                    "inlier_count": int(plane.inlier_count),
                     "inlier_ratio": metric_values["inlier_ratio"],
                     "rmse": metric_values["rmse"],
                     "score": metric_values["score"],
@@ -248,19 +276,7 @@ def run(
             print(f"csv: {csv_output}")
 
     # Visualise les plans via Open3D/custom visualizer
-    if visualize and planes:
-        plane_results = []
-        for idx, plane in enumerate(planes):
-            plane_results.append(
-                PlaneResult(
-                    plane_id=idx,
-                    normal=plane.normal,
-                    distance=plane.distance,
-                    inlier_indices=plane.inlier_indices,
-                    inlier_count=len(plane.inlier_indices),
-                    color=colors[idx % len(colors)],
-                )
-            )
+    if visualize and plane_results:
         visualize_point_cloud_with_planes(points, plane_results, "Room Plane Detection")
 
 ##parseur d'arguments pour la ligne de commande
@@ -295,6 +311,24 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--voxel-size", type=float, default=0.05, help="Taille de voxel pour l'echantillonnage voxel")
     parser.add_argument("--export-csv", action="store_true", help="Exporte les metriques en CSV")
     parser.add_argument("--csv-path", type=str, default="csv/room_planes_metrics.csv", help="Chemin du fichier CSV")
+    parser.add_argument(
+        "--world-model",
+        choices=["none", "manhattan", "atlanta"],
+        default="none",
+        help="Modele de monde : 'manhattan' (3 axes orthogonaux) ou 'atlanta' (1 axe vertical + N horizontaux)",
+    )
+    parser.add_argument(
+        "--world-angle-tol",
+        type=float,
+        default=15.0,
+        help="Tolerance angulaire (degres) pour recaler une normale sur un axe dominant (defaut: 15)",
+    )
+    parser.add_argument(
+        "--atlanta-n-horizontal",
+        type=int,
+        default=4,
+        help="Nombre de directions de murs horizontaux pour Atlanta World (defaut: 4)",
+    )
     return parser
 
 
@@ -313,4 +347,7 @@ if __name__ == "__main__":
         metric=args.metric,
         export_csv=args.export_csv,
         csv_path=args.csv_path,
+        world_model=args.world_model,
+        world_angle_tol=args.world_angle_tol,
+        atlanta_n_horizontal=args.atlanta_n_horizontal,
     )

@@ -19,6 +19,7 @@ from utility.analysis_utils import (
 )
 from utility.io_utils import load_points_from_ply
 from utility.visualizer import PlaneResult, visualize_point_cloud_with_planes
+from utility.world_model import estimate_dominant_axes, snap_planes_to_world
 
 
 @dataclass
@@ -238,6 +239,9 @@ def run(
     metric: bool = False,
     export_csv: bool = False,
     csv_path: str = "csv/ransac_metrics.csv",
+    world_model: str = "none",
+    world_angle_tol: float = 15.0,
+    atlanta_n_horizontal: int = 4,
 ) -> None:
     """Main entry point for RANSAC plane fitting."""
     points, used_ply_path = _load_points(ply_path)
@@ -303,8 +307,20 @@ def run(
                     color=(1.0, 0.0, 0.0),
                 )
             ]
+        if world_model != "none":
+            axes = estimate_dominant_axes(points, world_model, n_horizontal=atlanta_n_horizontal)
+            snap_thr = residual_threshold if residual_threshold is not None else (
+                0.01 * float(np.linalg.norm(points.max(axis=0) - points.min(axis=0)))
+            )
+            planes = snap_planes_to_world(
+                planes, axes, points,
+                angle_tol_deg=world_angle_tol,
+                distance_threshold=snap_thr,
+            )
     if metric or export_csv:
         print(f"planes_detected: {len(planes)}")
+        if world_model != "none":
+            print(f"world_model: {world_model}")
 
     if metric or export_csv:
         rows = []
@@ -403,6 +419,24 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--voxel-size", type=float, default=0.05, help="Taille de voxel pour l'echantillonnage voxel")
     parser.add_argument("--export-csv", action="store_true", help="Exporte les metriques en CSV")
     parser.add_argument("--csv-path", type=str, default="csv/ransac_metrics.csv", help="Chemin du fichier CSV")
+    parser.add_argument(
+        "--world-model",
+        choices=["none", "manhattan", "atlanta"],
+        default="none",
+        help="Modele de monde : 'manhattan' (3 axes orthogonaux) ou 'atlanta' (1 axe vertical + N horizontaux)",
+    )
+    parser.add_argument(
+        "--world-angle-tol",
+        type=float,
+        default=15.0,
+        help="Tolerance angulaire (degres) pour recaler une normale sur un axe dominant (defaut: 15)",
+    )
+    parser.add_argument(
+        "--atlanta-n-horizontal",
+        type=int,
+        default=4,
+        help="Nombre de directions de murs horizontaux pour Atlanta World (defaut: 4)",
+    )
     return parser
 
 
@@ -425,4 +459,7 @@ if __name__ == "__main__":
         metric=args.metric,
         export_csv=args.export_csv,
         csv_path=args.csv_path,
+        world_model=args.world_model,
+        world_angle_tol=args.world_angle_tol,
+        atlanta_n_horizontal=args.atlanta_n_horizontal,
     )
